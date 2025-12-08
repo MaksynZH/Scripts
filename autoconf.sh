@@ -1,63 +1,139 @@
-# Змінні / Variables
-ips=()
-check_errors="unreachable=[1-9]|failed=[1-9]|rescued=[1-9]|ignored=[1-9]"
-ssh_key="$HOME/.ssh/id_ed25519.pub"
-ssh_pass="y\GHkPkj|xhsJE6\c^6|"
-tagskip=preparationskiptag
-name_group=preparation
-
-# Збираємо IP-адреси, перевіряємо їх правильність і продовжуємо далі / We collect IP addresses, check their correctness and continue
-while true; do
-  read -p "Введіть IP-адреси через пробіл / Enter IP addresses through a space: " -a new_ips
-  ips+=("${new_ips[@]}")
-  echo "Ви ввели такі IP:"
-  printf '%s\n' "${ips[@]}"
-  read -p "Чи правильно ви ввели IP-адреси? (y/n) / Did you enter IP addresses correctly? (y/n): " confirm
-  if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then break; else echo "Введіть IP ще раз або додайте нові / Enter the IP again or add new ones"; fi
+# ЗМІННІ
+ip_addresses=()
+gologin_token=""
+sms_prod=""
+zero_patient=""
+path_ssh_key="~/.ssh/id_ed25519"
+ssh_password="y\GHkPkj|xhsJE6\c^6|"
+forks_speed=""
+run_awx_initial=""
+run_awx_clone=""
+run_interserver=""
+awx_initial_name="awx-initial-install-repo-edit.yml"
+awx_clone_name="awx-clone-profiles-repo-edit.yaml"
+interserver_name="interserver.yaml"
+errors="unreachable=[1-9]|failed=[1-9]|rescued=[1-9]|ignored=[1-9]"
+# ПЕРЕВІРКА ВЕДЕНИХ ДАНИХ
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть IP-адреси через пробіл: " -a new_ips
+    ip_addresses+=("${new_ips[@]}")
+   echo "Ви ввели такі IP:"
+    printf '%s\n' "${ip_addresses[@]}"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && ip_addresses=()
+done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть GoLogin Token: " gologin_token
+    echo "Ви ввели GoLogin Token: $gologin_token"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && gologin_token=""
+done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть SMS PROD KEY: " sms_prod
+    echo "Ви ввели SMS PROD KEY: $sms_prod"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && sms_prod=""
+done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть ZERO PATIENT: " zero_patient
+    echo "Ви ввели ZERO PATIENT: $zero_patient"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && zero_patient=""
+done
+#echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+#confirm="n"
+#until [[ $confirm == "y" || $confirm == "Y" ]]; do
+#    read -p "Введіть шлях до ssh ключа (Зазвичай це ~/.ssh/id_ed25519 або ~/.ssh/id_rsa): " path_ssh_key
+#    echo "Ви ввели шлях до ssh ключа: $path_ssh_key"
+#    read -p "Чи правильно? (y/n): " confirm
+#    [[ $confirm != "y" && $confirm != "Y" ]] && path_ssh_key=""
+#done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть швидкість команд (forks): " forks_speed
+    echo "Ви ввели швидкість: $forks_speed"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && forks_speed=""
+done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть чи запускати файл interserver.yaml (yes/no): " run_interserver
+    echo "Ви ввели: $run_interserver"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && run_interserver=""
+done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть чи запускати файл awx-initial-install-repo.yml (yes/no): " run_awx_initial
+    echo "Ви ввели: $run_awx_initial"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && run_awx_initial=""
+done
+echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
+confirm="n"
+until [[ $confirm == "y" || $confirm == "Y" ]]; do
+    read -p "Введіть чи запускати файл awx-clone-profiles-repo.yaml (yes/no): " run_awx_clone
+    echo "Ви ввели: $run_awx_clone"
+    read -p "Чи правильно? (y/n): " confirm
+    [[ $confirm != "y" && $confirm != "Y" ]] && run_awx_clone=""
+done
+# ЗМІНА ФАЙЛІ
+printf '\n[%s]\n' "$name_group_ip" | sed -i -e '$r/dev/stdin' hosts
+for ip in "${ip_addresses[@]}"; do
+  /usr/bin/sed -i "/$name_group_ip/ a $ip ansible_user=root" hosts
 done
 
-# Очищуємо IP-адресу після слова preparation / Clear the IP after the word preparation
-sed -i -e "/$name_group/q" $HOME/ansible-infrastructure/hosts
+/usr/bin/sed -i 's/private_key_file = ~\/.ssh\/id_rsa/private_key_file = ~\/.ssh\/id_ed25519/g' ansible.cfg
+/usr/bin/sed -i "/private_key_file = ~\/.ssh\/id_ed25519/ a host_key_checking = False" ansible.cfg
 
-# Додаємо кожний IP окремо з додаванням ansible_user=root / We add each IP separately with the addition of ansible_user=root
-for ip in "${ips[@]}"; do
-  sed -i "/$name_group/ a $ip ansible_user=root" $HOME/ansible-infrastructure/hosts
-done
+/usr/bin/sed -i "s|gologin_token: *|gologin_token: $gologin_token|g" $awx_clone_name
+/usr/bin/sed -i '/sms_key:/,/test:/ s/^      prod: */      prod: '"$sms_prod"'/' "$awx_clone_name"
+/usr/bin/sed -i "s|zero_patient: *|zero_patient: $zero_patient|g" $awx_clone_name
+# ДОДАЄМО SSH KEY
+printf '%s\n' "${ip_addresses[@]}" | parallel -j 5 /usr/bin/sshpass -p "$ssh_password" /usr/bin/ssh-copy-id -i "$path_ssh_key" root@{} >/dev/null 2>&1 || true
+# ОСНОВНА КОМАНДИ
+interserver () {
+  ansible_check_interserver_check=$(/usr/bin/ansible-playbook $interserver_name --limit "$name_group_ip" -f "$forks_speed" 2>&1)
+  if echo "$ansible_check_interserver_check" | grep -Eq "$errors" ; then
+    echo "ЗНАЙДЕНА ПОМИЛКА:"
+    echo "$ansible_check_interserver_check" | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}|$errors" | grep -v "UNREACHABLE"
+  fi
+}
+if [[ "$run_interserver" == "yes" ]]; then interserver; fi
+awx_initial () {
+  ansible_check_awx_initial_check=$(/usr/bin/ansible-playbook $awx_initial_name --limit "$name_group_ip" -f "$forks_speed" 2>&1)
+  if echo "$ansible_check_awx_initial_check" | grep -Eq "$errors" ; then
+    echo "ЗНАЙДЕНА ПОМИЛКА:"
+    echo "$ansible_check_awx_initial_check" | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}|$errors" | grep -v "UNREACHABLE"
+  fi
+}
+if [[ "$run_awx_initial" == "yes" ]]; then awx_initial; fi
+awx_clone () {
+  ansible_check_awx_clone_check=$(/usr/bin/ansible-playbook $awx_clone_name --limit "$name_group_ip" 2>&1)
+  if echo "$ansible_check_awx_clone_check" | grep -Eq "$errors" ; then
+    echo "ЗНАЙДЕНА ПОМИЛКА:"
+    echo "$ansible_check_awx_clone_check" | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}|$errors" | grep -v "UNREACHABLE"
+  fi
+}
+if [[ "$run_awx_clone" == "yes" ]]; then awx_clone; fi
+# ВИДАЛЯЄМО ВСІ ЗМІННИ В ФАЙЛАХ
+/usr/bin/sed -i "s/\(gologin_token:\) *.*/\1/" $awx_clone_name
+/usr/bin/sed -i 's/^      prod: .*/      prod: /' "$awx_clone_name"
+/usr/bin/sed -i "s/\(zero_patient:\) *.*/\1/" $awx_clone_name
 
-# Додаємо тег preparationskiptag після кожного #need skip / We add the preparationskiptag tag after each #need skip
-sed -i "/#need skip/ a\      tags: $tagskip" $HOME/ansible-infrastructure/awx-initial-install-repo.yml
+/usr/bin/sed -i 's/private_key_file = ~\/.ssh\/id_ed25519/private_key_file = ~\/.ssh\/id_rsa/g' ansible.cfg
+/usr/bin/sed -i "/host_key_checking = False/d" ansible.cfg
 
-# Копіюємо ssh ключ на кожний IP / We copy the ssh key to each IP 
-for ipssh in "${ips[@]}"; do
-  /bin/sshpass -p "$ssh_pass" ssh-copy-id -i "$ssh_key" root@$ipssh
-done
-
-# Команда для тестового запуску playbook awx-initial-install-repo.yml / Command to test run playbook awx-initial-install-repo.yml
-ansible_check_awx_initial_check=$(/usr/bin/ansible-playbook $HOME/ansible-infrastructure/awx-initial-install-repo.yml --limit "$name_group" --skip-tags $tagskip --check -f 50 2>&1)
-exit_code=$?
-
-# Перевіряємо наявність помилок, за їх відсутності запускаємо основну команду / We check the presence of errors, in their absence we start the main command
-if [[ $exit_code -ne 0 ]] || echo "$ansible_check_awx_initial_check" | grep -Eq "$check_errors" ; then
-  echo "Знайдена помилка:"
-  echo "$ansible_check_awx_initial_check"
-  else
-    /usr/bin/ansible-playbook $HOME/ansible-infrastructure/awx-initial-install-repo.yml --limit "$name_group" -f 50
-fi
-
-# Команда для тестового запуску playbook interserver.yaml / Command to test run playbook interserver.yaml
-ansible_check_interserver_check=$(/usr/bin/ansible-playbook $HOME/ansible-infrastructure/interserver.yaml --limit "$name_group" --check -f 50 2>&1)
-exit_code=$?
-
-# Перевіряємо наявність помилок, за їх відсутності запускаємо основну команду / We check the presence of errors, in their absence we start the main command
-if [[ $exit_code -ne 0 ]] || echo "$ansible_check_interserver_check" | grep -Eq "$check_errors" ; then
-  echo "Знайдена помилка:"
-  echo "$ansible_check_interserver_check"
-  else
-    /usr/bin/ansible-playbook $HOME/ansible-infrastructure/interserver.yaml --limit "$name_group" -f 50
-fi
-
-# Видаляємо тег preparationskiptag після виконаних робіт / We remove the preparationskiptag tag after the work has been completed
-sed -i "/tags: $tagskip/d" $HOME/ansible-infrastructure/awx-initial-install-repo.yml
-
-# Завершуємо script без помилок / We complete the script without errors
-exit 0
+sed -i "/$name_group_ip/,\$d" hosts
+#KIНЕЦЬ
