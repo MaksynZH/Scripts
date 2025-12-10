@@ -6,6 +6,7 @@ zero_patient=""
 path_ssh_key="~/.ssh/id_ed25519"
 ssh_password="y\GHkPkj|xhsJE6\c^6|"
 forks_speed=""
+name_group_ip="preparation"
 run_awx_initial=""
 run_awx_clone=""
 run_interserver=""
@@ -48,6 +49,7 @@ until [[ $confirm == "y" || $confirm == "Y" ]]; do
     read -p "Чи правильно? (y/n): " confirm
     [[ $confirm != "y" && $confirm != "Y" ]] && zero_patient=""
 done
+
 #echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
 #confirm="n"
 #until [[ $confirm == "y" || $confirm == "Y" ]]; do
@@ -56,6 +58,7 @@ done
 #    read -p "Чи правильно? (y/n): " confirm
 #    [[ $confirm != "y" && $confirm != "Y" ]] && path_ssh_key=""
 #done
+
 echo     # ПРОПУСК МІЖ ЗАПИТАННЯМИ
 confirm="n"
 until [[ $confirm == "y" || $confirm == "Y" ]]; do
@@ -100,6 +103,9 @@ done
 /usr/bin/sed -i "s|gologin_token: *|gologin_token: $gologin_token|g" $awx_clone_name
 /usr/bin/sed -i '/sms_key:/,/test:/ s/^      prod: */      prod: '"$sms_prod"'/' "$awx_clone_name"
 /usr/bin/sed -i "s|zero_patient: *|zero_patient: $zero_patient|g" $awx_clone_name
+/usr/bin/sed -i '/sms_env_type:/,/test:/ s/^      prod: */      prod: '"production"'/' "$awx_clone_name"
+/usr/bin/sed -i '/script_env_type:/,/test:/ s/^      prod: */      prod: '"prod"'/' "$awx_clone_name"
+/usr/bin/sed -i '/clone_name:/,/test:/ s/^      prod: */      prod: '"premium_gmail"'/' "$awx_clone_name"
 # ДОДАЄМО SSH KEY
 printf '%s\n' "${ip_addresses[@]}" | parallel -j 5 /usr/bin/sshpass -p "$ssh_password" /usr/bin/ssh-copy-id -i "$path_ssh_key" root@{} >/dev/null 2>&1 || true
 # ОСНОВНА КОМАНДИ
@@ -127,7 +133,35 @@ awx_clone () {
   fi
 }
 if [[ "$run_awx_clone" == "yes" ]]; then awx_clone; fi
+ip_list=()
+range_list=()
+awx_clone () {
+  ansible_check_awx_clone_check=$(/usr/bin/ansible-playbook $awx_clone_name --limit "$name_group_ip" 2>&1)
+  echo "$ansible_check_awx_clone_check"
+  while IFS= read -r line; do
+    if [[ $line =~ ok:\ \[([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) ]]; then
+      ip_list+=("${BASH_REMATCH[1]}")
+    fi
+  done < <(echo "$ansible_check_awx_clone_check" | grep "ok: \[")
+  ranges=($(echo "$ansible_check_awx_clone_check" | grep "Profiles range:" | sed 's/.*Profiles range: \([0-9]\+ - [0-9]\+\).*/\1/'))
+  range_list=("${ranges[@]}")
+  if echo "$ansible_check_awx_clone_check" | grep -Eq "$errors" ; then
+    echo "ЗНАЙДЕНА ПОМИЛКА:"
+    echo "$ansible_check_awx_clone_check" | grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}|$errors" | grep -v "UNREACHABLE"
+  fi
+}
+if [[ "$run_awx_clone" == "yes" ]]; then awx_clone; fi
+
+printf "\n%-15s | %-15s\n" "IP-адреса" "Range"
+printf "%s-+-%s\n" "---------------" "---------------"
+for i in "${!ip_list[@]}"; do
+  printf "%-15s | %-15s\n" "${ip_list[i]}" "${range_list[i]}"
+done
+
 # ВИДАЛЯЄМО ВСІ ЗМІННИ В ФАЙЛАХ
+/usr/bin/sed -i '/clone_name:/,/test:/ s/^      prod: .*/      prod: /' "$awx_clone_name"
+/usr/bin/sed -i '/script_env_type:/,/test:/ s/^      prod: .*/      prod: /' "$awx_clone_name"
+/usr/bin/sed -i '/sms_env_type:/,/test:/ s/^      prod: .*/      prod: /' "$awx_clone_name"
 /usr/bin/sed -i "s/\(gologin_token:\) *.*/\1/" $awx_clone_name
 /usr/bin/sed -i 's/^      prod: .*/      prod: /' "$awx_clone_name"
 /usr/bin/sed -i "s/\(zero_patient:\) *.*/\1/" $awx_clone_name
